@@ -199,14 +199,15 @@ def astar(start, goal, state, c_path):
 
 
 def get_max_P(bel):
-    maxnode = (0,0)
+    maxlist = [(0,0)]
     for row in range(len(bel)):
         for col in range(len(bel[row])):
-            if bel[row, col] > bel[maxnode]:
-                maxnode = (row, col)
-            elif bel[row,col] == bel[maxnode] and random.randint(0,2)==1:
-                maxnode = (row, col)
-    return maxnode
+            if bel[row, col] > bel[maxlist[0]]:
+                maxlist = [(row, col)]
+            elif bel[row,col] == bel[maxlist[0]] and random.randint(0,2)==1:
+                maxlist.append((row,col))
+    random.shuffle(maxlist)
+    return maxlist[0]
 
 # 
 #
@@ -229,14 +230,23 @@ def main():
     # Loop continually.
     while True:
         # Show the current belief.  Also show the actual position.
-        pos = get_max_P(bel)
-        visual.Show(bel, [robot.Position(), pos])
-        # Get the command key to determine the direction.
+        attempt = 1
+        path = None
+        while attempt < 100 and path == None:
+            pos = get_max_P(bel)
+            visual.Show(bel, robot.Position(), pos)
+            # Get the command key to determine the direction.
+            
+            c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
+                        1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
+            state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
+            path, S = astar(pos, GOAL, state, c_path_1)
+            attempt += 1
         
-        c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
-                     1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
-        state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
-        path, S = astar(pos, GOAL, state, c_path_1)
+        if attempt >= 100:
+            print("could not find path")
+            break
+
         d = (path[1][0] - pos[0], path[1][1] - pos[1])
         robot.Command(d[0], d[1])
         # Move the robot in the simulation.

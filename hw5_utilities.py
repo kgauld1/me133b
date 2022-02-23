@@ -83,6 +83,7 @@ class Visualization():
         # Clear the content and mark.  Then show with zeros.
         self.content = None
         self.mark    = None
+        self.mark2   = None
 
     def Flush(self):
         # Show the plot.
@@ -100,6 +101,22 @@ class Visualization():
 
         # Draw the mark.
         self.mark  = plt.gca().text(0.5+col, 0.5+row, 'x', color = 'green',
+                                    verticalalignment='center',
+                                    horizontalalignment='center',
+                                    zorder=1)
+
+    def Mark2(self, row, col):
+        # Check the row/col arguments.
+        assert (row >= 0) and (row < self.rows), "Illegal row"
+        assert (col >= 0) and (col < self.cols), "Illegal col"
+
+        # Potentially remove the previous mark.
+        if self.mark2 is not None:
+            self.mark2.remove()
+            self.mark2 = None
+
+        # Draw the mark.
+        self.mark2  = plt.gca().text(0.5+col, 0.5+row, 'x', color = 'red',
                                     verticalalignment='center',
                                     horizontalalignment='center',
                                     zorder=1)
@@ -136,13 +153,15 @@ class Visualization():
                                         extent=[0, self.cols, self.rows, 0],
                                         zorder=0)
 
-    def Show(self, prob, pos = []):
+    def Show(self, prob, mark=None, mark2=None):
         # Update the content.
         self.Grid(prob)
 
         # Potentially add the mark.
-        for p in pos:
-            self.Mark(p[0], p[1])
+        if mark != None:
+            self.Mark(mark[0], mark[1])
+        if mark2 != None:
+            self.Mark2(mark2[0], mark2[1])
 
         # Flush the figure.
         self.Flush()
