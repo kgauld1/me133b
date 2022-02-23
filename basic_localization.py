@@ -1,6 +1,6 @@
 
 import numpy as np
-
+import random
 from hw5_utilities import Visualization, Robot
 
 #  Define the Walls
@@ -29,6 +29,7 @@ w = ['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
      'x           xxx                     x       xxxxx',
      'x          xxxxx                    x      xxxxxx',
      'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']
+
 
 walls = np.array([[1.0*(c == 'x') for c in s] for s in w])
 rows  = np.size(walls, axis=0)
@@ -89,45 +90,6 @@ PATH      = 4
 START = (5,  4)
 GOAL  = (5, 12)
 
-def astar(start, goal, state, c_path):
-    # Tracks which nodes are in ondeck and when they were added to ondeck
-    ondeck = [start]
-    # For any node, stores the node prior to it
-    prior_node = {start:None}
-    
-    # While there is a node that has not been fully processed, process it
-    while ondeck:
-        # Sort ondeck by the path cost for each node, so the first entry
-        # has the lowest path cost, then get the first entry 
-        ondeck.sort(key=c_path)
-        current = ondeck.pop(0)
-        
-        if current == goal:
-            state[current] = PROCESSED
-            # Return the path used to get to the goal and the state
-            return (build_path(goal, prior_node), state)
-        
-        # Get the next nodes in each direction (up down left right)
-        for i in (-1,1): # -1 for up/left, +1 for down/right
-            for axis in (0, 1): # axis 0 for right/left, 1 for up/down
-                
-                # Find the next node in the specified direction
-                nnode = (current[0] + (i if axis==1 else 0),
-                         current[1] + (i if axis==0 else 0))
-                
-                # If the node has not been seen yet, add to ondeck and track
-                # the node used to get to this one (the current node)
-                if state[nnode] == UNKNOWN:
-                    state[nnode] = ONDECK
-                    ondeck.append(nnode)
-                    prior_node[nnode] = current
-        
-        # Mark the node as processed, check if we've reached the goal, then continue
-        state[current] = PROCESSED
-    
-    # If a path could not be found
-    return (None, state)
-
 
 def computePrediction(bel, drow, dcol, probCmd = 1):
     # Prepare an empty prediction grid.
@@ -181,6 +143,71 @@ def computeSensorProbability(drow, dcol, probProximal = [1.0]):
     return prob
 
 
+def build_path(goal, pnodes):
+    # Start the path at the end
+    path = [goal]
+    current = goal
+    
+    # While the current node has one before it, add the prior
+    # node to the path then redo the check with this node
+    while pnodes[current] != None:
+        path.append(pnodes[current])
+        current = pnodes[current]
+    
+    # Once the start node is reached, reverse the path (start -> goal) and return
+    path.reverse()
+    return path
+
+def astar(start, goal, state, c_path):
+    # Tracks which nodes are in ondeck and when they were added to ondeck
+    ondeck = [start]
+    # For any node, stores the node prior to it
+    prior_node = {start:None}
+    
+    # While there is a node that has not been fully processed, process it
+    while ondeck:
+        # Sort ondeck by the path cost for each node, so the first entry
+        # has the lowest path cost, then get the first entry 
+        ondeck.sort(key=c_path)
+        current = ondeck.pop(0)
+
+        if current == goal:
+            state[current] = PROCESSED
+            # Return the path used to get to the goal and the state
+            return (build_path(goal, prior_node), state)
+        
+        # Get the next nodes in each direction (up down left right)
+        for i in (-1,1): # -1 for up/left, +1 for down/right
+            for axis in (0, 1): # axis 0 for right/left, 1 for up/down
+                
+                # Find the next node in the specified direction
+                nnode = (current[0] + (i if axis==1 else 0),
+                         current[1] + (i if axis==0 else 0))
+                
+                # If the node has not been seen yet, add to ondeck and track
+                # the node used to get to this one (the current node)
+                if state[nnode] == UNKNOWN:
+                    state[nnode] = ONDECK
+                    ondeck.append(nnode)
+                    prior_node[nnode] = current
+        
+        # Mark the node as processed, check if we've reached the goal, then continue
+        state[current] = PROCESSED
+    
+    # If a path could not be found
+    return (None, state)
+
+
+def get_max_P(bel):
+    maxnode = (0,0)
+    for row in range(len(bel)):
+        for col in range(len(bel[row])):
+            if bel[row, col] > bel[maxnode]:
+                maxnode = (row, col)
+            elif bel[row,col] == bel[maxnode] and random.randint(0,2)==1:
+                maxnode = (row, col)
+    return maxnode
+
 # 
 #
 #  Main Code
@@ -194,17 +221,6 @@ def main():
     probDown  = computeSensorProbability( 1,  0, probProximal)
     probLeft  = computeSensorProbability( 0, -1, probProximal)
 
-    # Show the sensor probability maps.
-    visual.Show(probUp)
-    input("Probability of proximal sensor up reporting True")
-    visual.Show(probRight)
-    input("Probability of proximal sensor right reporting True")
-    visual.Show(probDown)
-    input("Probability of proximal sensor down reporting True")
-    visual.Show(probLeft)
-    input("Probability of proximal sensor left reporting True")
-
-
     # Start with a uniform belief grid.
     bel = 1.0 - walls
     bel = (1/np.sum(bel)) * bel
@@ -213,23 +229,22 @@ def main():
     # Loop continually.
     while True:
         # Show the current belief.  Also show the actual position.
-        visual.Show(bel, robot.Position())
-
+        pos = get_max_P(bel)
+        visual.Show(bel, [robot.Position(), pos])
         # Get the command key to determine the direction.
-        while True:
-            key = input("Cmd (q=quit, i=up, m=down, j=left, k=right) ?")
-            if   (key == 'q'):  return
-            elif (key == 'i'):  (drow, dcol) = (-1,  0) ; break
-            elif (key == 'm'):  (drow, dcol) = ( 1,  0) ; break
-            elif (key == 'j'):  (drow, dcol) = ( 0, -1) ; break
-            elif (key == 'k'):  (drow, dcol) = ( 0,  1) ; break
-
+        
+        c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
+                     1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
+        state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
+        path, S = astar(pos, GOAL, state, c_path_1)
+        d = (path[1][0] - pos[0], path[1][1] - pos[1])
+        robot.Command(d[0], d[1])
         # Move the robot in the simulation.
-        robot.Command(drow, dcol)
+        # robot.Command(drow, dcol)
 
 
         # Compute a prediction.
-        prd = computePrediction(bel, drow, dcol, probCmd)
+        prd = computePrediction(bel, d[0], d[1], probCmd)
         #visual.Show(prd)
         #input("Showing the prediction")
 

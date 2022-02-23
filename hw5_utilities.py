@@ -86,7 +86,7 @@ class Visualization():
 
     def Flush(self):
         # Show the plot.
-        plt.pause(0.001)
+        plt.pause(1)#0.001)
 
     def Mark(self, row, col):
         # Check the row/col arguments.
@@ -136,13 +136,13 @@ class Visualization():
                                         extent=[0, self.cols, self.rows, 0],
                                         zorder=0)
 
-    def Show(self, prob, pos = None):
+    def Show(self, prob, pos = []):
         # Update the content.
         self.Grid(prob)
 
         # Potentially add the mark.
-        if pos is not None:
-            self.Mark(pos[0], pos[1])
+        for p in pos:
+            self.Mark(p[0], p[1])
 
         # Flush the figure.
         self.Flush()
