@@ -87,7 +87,7 @@ class Visualization():
 
     def Flush(self):
         # Show the plot.
-        plt.pause(1)#0.001)
+        plt.pause(0.01)
 
     def Mark(self, row, col):
         # Check the row/col arguments.

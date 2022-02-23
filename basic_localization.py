@@ -214,7 +214,7 @@ def get_max_P(bel):
 #  Main Code
 #
 def main():
-    (visual, robot, probCmd, probProximal) = get_init('a')
+    (visual, robot, probCmd, probProximal) = get_init('c')
 
     # Pre-compute the probability grids for each sensor reading.
     probUp    = computeSensorProbability(-1,  0, probProximal)
@@ -243,8 +243,11 @@ def main():
             path, S = astar(pos, GOAL, state, c_path_1)
             attempt += 1
         
-        if attempt >= 100:
-            print("could not find path")
+        if attempt >= 100 or path==None:
+            print("Could not find path")
+            break
+        if path[0] == GOAL:
+            print("Goal found!")
             break
 
         d = (path[1][0] - pos[0], path[1][1] - pos[1])
