@@ -214,7 +214,7 @@ def get_max_P(bel):
 #  Main Code
 #
 def main():
-    (visual, robot, probCmd, probProximal) = get_init('c')
+    (visual, robot, probCmd, probProximal) = get_init('e')
 
     # Pre-compute the probability grids for each sensor reading.
     probUp    = computeSensorProbability(-1,  0, probProximal)
@@ -225,32 +225,33 @@ def main():
     # Start with a uniform belief grid.
     bel = 1.0 - walls
     bel = (1/np.sum(bel)) * bel
+    fails = 0
 
-
+    dirs = [(0,1), (0,-1), (1,0), (-1,0)]
     # Loop continually.
     while True:
         # Show the current belief.  Also show the actual position.
-        attempt = 1
-        path = None
-        while attempt < 100 and path == None:
-            pos = get_max_P(bel)
-            visual.Show(bel, robot.Position(), pos)
-            # Get the command key to determine the direction.
-            
-            c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
-                        1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
-            state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
-            path, S = astar(pos, GOAL, state, c_path_1)
-            attempt += 1
+        pos = get_max_P(bel)
+        visual.Show(bel, robot.Position(), pos)
+        # Get the command key to determine the direction.
         
-        if attempt >= 100 or path==None:
+        c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
+                    1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
+        state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
+        path, S = astar(pos, GOAL, state, c_path_1)
+
+        if fails >= 50 and path==None:
             print("Could not find path")
             break
-        if path[0] == GOAL:
+        if path != None and path[0] == GOAL:
             print("Goal found!")
             break
 
-        d = (path[1][0] - pos[0], path[1][1] - pos[1])
+        if path != None:
+            d = (path[1][0] - pos[0], path[1][1] - pos[1])
+        else:
+            fails += 1
+            d = dirs[random.randint(0,3)]
         robot.Command(d[0], d[1])
         # Move the robot in the simulation.
         # robot.Command(drow, dcol)
