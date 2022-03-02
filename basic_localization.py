@@ -287,7 +287,7 @@ def main():
             print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
             break
 
-        '''if (get_max_Prob(bel) < .1) and tries < 20:
+        if (get_max_Prob(bel) < .1) and tries < 20:
             d = best_move_4_info(bel, probCmd, probUp, probDown,\
                                  probLeft, probRight)
             tries += 5;
@@ -297,12 +297,12 @@ def main():
         else:
             fails += 1
             d = best_move_4_info(bel, probCmd, probUp, probDown,\
-                                 probLeft, probRight)'''
-        if path != None:
+                                 probLeft, probRight)
+        '''if path != None:
             d = (path[1][0] - pos[0], path[1][1] - pos[1])
         else:
             fails += 1
-            d = dirs[random.randint(0,3)]
+            d = dirs[random.randint(0,3)]'''
         robot.Command(d[0], d[1])
         tot_moves += 1
         # Move the robot in the simulation.
