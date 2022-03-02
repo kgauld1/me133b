@@ -6,27 +6,27 @@ from hw5_utilities import Visualization, Robot
 #  Define the Walls
 w = ['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
      'x               x               x               x',
-     'x                x             x                x',
-     'x                 x           x                 x',
+     'x    x xxx       x             x                x',
+     'x                 x           x    xxxx xxxx    x',
      'x        xxxx      x         x                  x',
-     'x        x   x      x       x                   x',
-     'x        x    x      x     x      xxxxx         x',
-     'x        x     x      x   x     xxx   xxx       x',
+     'x    x   x   x      x       x                   x',
+     'x    x   x    x      x     x      xxxxx         x',
+     'x     x  x     x      x   x     xxx   xxx       x',
      'x        x      x      x x     xx       xx      x',
-     'x        x       x      x      x         x      x',
-     'x        x        x           xx         xx     x',
-     'x        x        x           x           x     x',
-     'x        x        x           x           x     x',
-     'x        x        x           x           x     x',
-     'x                 xx         xx           x     x',
-     'x                  x         x                  x',
-     'x                  xx       xx                  x',
-     'x                   xxx   xxx                   x',
-     'x                     xxxxx         x           x',
-     'x                                   x          xx',
-     'x                                   x         xxx',
-     'x            x                      x        xxxx',
-     'x           xxx                     x       xxxxx',
+     'x        x       x      x      x   x     x      x',
+     'x        x   x    x           xx   x     xx     x',
+     'x        x   x    x           x    x  x   x     x',
+     'x        x   x    x     x     x      x    x     x',
+     'x        x   x    x     x     x     x     x     x',
+     'x            x    xx    x    xx           x     x',
+     'x            x     x         x                  x',
+     'x           x      xx       xx                  x',
+     'x         xx        xxx   xxx                   x',
+     'x   x                 xxxxx         x           x',
+     'x    x                              x          xx',
+     'x    x                     x        x         xxx',
+     'x            x             x        x        xxxx',
+     'x           xxx            x        x       xxxxx',
      'x          xxxxx                    x      xxxxxx',
      'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']
 
@@ -61,7 +61,7 @@ def get_init(part):
     elif part == 'c':
         robot = Robot(walls, row=12, col=26, probProximal = [0.9, 0.6, 0.3])
     elif part == 'd' or part == 'e':
-        robot = Robot(walls, row=15, col=47, 
+        robot = Robot(walls, row=10, col=28, 
                       probCmd = 0.8, probProximal = [0.9, 0.6, 0.3])
 
 
@@ -88,7 +88,7 @@ PATH      = 4
 
 # Define the constant START and GOAL positions
 START = (5,  4)
-GOAL  = (5, 12)
+GOAL  = (17, 15)
 
 
 def computePrediction(bel, drow, dcol, probCmd = 1):
@@ -209,6 +209,44 @@ def get_max_P(bel):
     random.shuffle(maxlist)
     return maxlist[0]
 
+def get_max_Prob(bel):
+    max_p = 0
+    for row in range(len(bel)):
+            for col in range(len(bel[row])):
+                if bel[row, col] > max_p:
+                    max_p = bel[row, col]
+    return max_p
+
+def get_nonzero(bel):
+    non_z = 0
+    for row in range(len(bel)):
+            for col in range(len(bel[row])):
+                if bel[row, col] != 0:
+                    non_z += 1
+    return non_z
+
+
+def best_move_4_info(bel, probCmd, pUp, pDown, pLeft, pRight):
+    dirs = [(0,1), (0,-1), (1,0), (-1,0)]
+    pos = get_max_P(bel)
+    max_move = 0
+    best_move = dirs[random.randint(0,3)]
+    for i in range(4):
+        npos = (pos[0] + dirs[i][0], pos[1] + dirs[i][1])
+        if walls[npos]:
+            npos = pos
+        new = computePrediction(bel, dirs[i][0], dirs[i][0], 1)
+        new = updateBelief(new, pUp,    np.ceil(pUp[npos]))
+        new = updateBelief(new, pRight, np.ceil(pRight[npos]))
+        new = updateBelief(new, pDown,  np.ceil(pDown[npos]))
+        new = updateBelief(new, pLeft,  np.ceil(pLeft[npos]))
+        max_dir = get_max_Prob(new)-.01*get_nonzero(new)#get_max_Prob(new)
+        if max_dir > max_move:
+            max_move = max_dir;
+            best_move = dirs[i]
+    return best_move
+    
+
 # 
 #
 #  Main Code
@@ -228,9 +266,11 @@ def main():
     fails = 0
 
     dirs = [(0,1), (0,-1), (1,0), (-1,0)]
+    tot_moves = 0
     # Loop continually.
     while True:
         # Show the current belief.  Also show the actual position.
+        tries = 0
         pos = get_max_P(bel)
         visual.Show(bel, robot.Position(), pos)
         # Get the command key to determine the direction.
@@ -244,15 +284,27 @@ def main():
             print("Could not find path")
             break
         if path != None and path[0] == GOAL:
-            print("Goal found!")
+            print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
             break
 
+        '''if (get_max_Prob(bel) < .1) and tries < 20:
+            d = best_move_4_info(bel, probCmd, probUp, probDown,\
+                                 probLeft, probRight)
+            tries += 5;
+        elif path != None:
+            d = (path[1][0] - pos[0], path[1][1] - pos[1])
+            tries -= 1
+        else:
+            fails += 1
+            d = best_move_4_info(bel, probCmd, probUp, probDown,\
+                                 probLeft, probRight)'''
         if path != None:
             d = (path[1][0] - pos[0], path[1][1] - pos[1])
         else:
             fails += 1
             d = dirs[random.randint(0,3)]
         robot.Command(d[0], d[1])
+        tot_moves += 1
         # Move the robot in the simulation.
         # robot.Command(drow, dcol)
 
