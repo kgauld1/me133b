@@ -64,8 +64,6 @@ def get_init(part):
         robot = Robot(walls, row=10, col=28, 
                       probCmd = 0.8, probProximal = [0.9, 0.6, 0.3])
 
-
-
     # Pick the algorithm assumptions:
     probCmd      = 1.0   # Part (a/b), (c), (d)
     if part == 'e':
@@ -142,39 +140,18 @@ def computeSensorProbability(drow, dcol, probProximal = [1.0]):
     # a 100% chance of being on for 2 points in the grid at the same time
     return prob
 
+paths = {}
 
-def build_path(goal, pnodes):
-    # Start the path at the end
-    path = [goal]
-    current = goal
-    
-    # While the current node has one before it, add the prior
-    # node to the path then redo the check with this node
-    while pnodes[current] != None:
-        path.append(pnodes[current])
-        current = pnodes[current]
-    
-    # Once the start node is reached, reverse the path (start -> goal) and return
-    path.reverse()
-    return path
-
-def astar(start, goal, state, c_path):
+def create_map(goal, state):
     # Tracks which nodes are in ondeck and when they were added to ondeck
-    ondeck = [start]
+    ondeck = [goal]
     # For any node, stores the node prior to it
-    prior_node = {start:None}
+    prior_node = {goal:None}
     
     # While there is a node that has not been fully processed, process it
     while ondeck:
-        # Sort ondeck by the path cost for each node, so the first entry
-        # has the lowest path cost, then get the first entry 
-        ondeck.sort(key=c_path)
+        # Get current node
         current = ondeck.pop(0)
-
-        if current == goal:
-            state[current] = PROCESSED
-            # Return the path used to get to the goal and the state
-            return (build_path(goal, prior_node), state)
         
         # Get the next nodes in each direction (up down left right)
         for i in (-1,1): # -1 for up/left, +1 for down/right
@@ -193,10 +170,23 @@ def astar(start, goal, state, c_path):
         
         # Mark the node as processed, check if we've reached the goal, then continue
         state[current] = PROCESSED
-    
-    # If a path could not be found
-    return (None, state)
+        paths[current] = build_path(current, prior_node, reverse=True)
 
+def build_path(goal, pnodes, reverse=False):
+    # Start the path at the end
+    path = [goal]
+    current = goal
+    
+    # While the current node has one before it, add the prior
+    # node to the path then redo the check with this node
+    while pnodes[current] != None:
+        path.append(pnodes[current])
+        current = pnodes[current]
+    
+    # Once the start node is reached, reverse the path (start -> goal) and return
+    if not reverse:
+        path.reverse()
+    return path
 
 def get_max_P(bel):
     maxlist = [(0,0)]
@@ -212,10 +202,26 @@ def get_max_P(bel):
 def get_max_Prob(bel):
     max_p = 0
     for row in range(len(bel)):
-            for col in range(len(bel[row])):
-                if bel[row, col] > max_p:
-                    max_p = bel[row, col]
+        for col in range(len(bel[row])):
+            max_p = max(max_p, bel[row, col])
     return max_p
+
+def prob_pos_R(bel):
+    counter = 0
+    stored = []
+    s_count = []
+    for row in range(len(bel)):
+        for col in range(len(bel[row])):
+            if bel[row,col] != 0:
+                counter += bel[row, col]
+                s_count.append(counter)
+                stored.append((row,col))
+    search = random.random()
+    k = 0
+    while k < len(s_count)-1 and s_count[k] < search:
+        k += 1
+    return stored[k]
+
 
 def get_nonzero(bel):
     non_z = 0
@@ -242,7 +248,7 @@ def best_move_4_info(bel, probCmd, pUp, pDown, pLeft, pRight):
         new = updateBelief(new, pLeft,  np.ceil(pLeft[npos]))
         max_dir = get_max_Prob(new)-.01*get_nonzero(new)#get_max_Prob(new)
         if max_dir > max_move:
-            max_move = max_dir;
+            max_move = max_dir
             best_move = dirs[i]
     return best_move
     
@@ -260,6 +266,11 @@ def main():
     probDown  = computeSensorProbability( 1,  0, probProximal)
     probLeft  = computeSensorProbability( 0, -1, probProximal)
 
+    # Precompute the path from every node to the goal
+    # Access using paths[node]
+    state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
+    create_map(GOAL, state)
+
     # Start with a uniform belief grid.
     bel = 1.0 - walls
     bel = (1/np.sum(bel)) * bel
@@ -271,15 +282,15 @@ def main():
     while True:
         # Show the current belief.  Also show the actual position.
         tries = 0
-        pos = get_max_P(bel)
+        pos = prob_pos_R(bel) #get_max_P(bel)
         visual.Show(bel, robot.Position(), pos)
         # Get the command key to determine the direction.
-        
-        c_path_1 = lambda x: 1*(abs(x[0]- GOAL[0]) + abs(x[1]- GOAL[1])) +\
-                    1*(abs(x[0]-START[0]) + abs(x[1]-START[1]))
-        state = np.array([[1-1.0*(c == 'x') for c in s] for s in w])
-        path, S = astar(pos, GOAL, state, c_path_1)
 
+        if pos in paths:
+            path = paths[pos]
+        else:
+            path = None
+        
         if fails >= 50 and path==None:
             print("Could not find path")
             break
@@ -290,7 +301,7 @@ def main():
         if (get_max_Prob(bel) < .1) and tries < 20:
             d = best_move_4_info(bel, probCmd, probUp, probDown,\
                                  probLeft, probRight)
-            tries += 5;
+            tries += 5
         elif path != None:
             d = (path[1][0] - pos[0], path[1][1] - pos[1])
             tries -= 1
