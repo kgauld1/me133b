@@ -188,16 +188,26 @@ def build_path(goal, pnodes, reverse=False):
         path.reverse()
     return path
 
-def get_max_P(bel):
-    maxlist = [(0,0)]
+def get_max_P(bel, n):
+    maxlist = [(0,0,0)]*n
+    bellist = [0]*n
     for row in range(len(bel)):
         for col in range(len(bel[row])):
-            if bel[row, col] > bel[maxlist[0]]:
-                maxlist = [(row, col)]
-            elif bel[row,col] == bel[maxlist[0]] and random.randint(0,2)==1:
-                maxlist.append((row,col))
-    random.shuffle(maxlist)
-    return maxlist[0]
+            belief = bel[row,col]
+            for i in range(n):
+                if belief > maxlist[i][2]:
+                    maxlist.insert(i, (row, col, belief))
+                    maxlist.remove(maxlist[n])
+                    bellist.insert(i, belief)
+                    bellist.remove(bellist[n])
+    randnum = random.random()
+    beliefsum = sum(bellist)
+    belsum = 0
+    for i in range(n):
+        belsum += bellist[i]
+        if randnum < belsum/beliefsum:
+            return (maxlist[i][0], maxlist[i][1])
+
 
 def get_max_Prob(bel):
     max_p = 0
@@ -234,7 +244,7 @@ def get_nonzero(bel):
 
 def best_move_4_info(bel, probCmd, pUp, pDown, pLeft, pRight):
     dirs = [(0,1), (0,-1), (1,0), (-1,0)]
-    pos = get_max_P(bel)
+    pos = get_max_P(bel, 5)
     max_move = 0
     best_move = dirs[random.randint(0,3)]
     for i in range(4):
