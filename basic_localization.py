@@ -1,4 +1,5 @@
 
+from re import L
 import numpy as np
 import random
 from hw5_utilities import Visualization, Robot
@@ -263,6 +264,27 @@ def best_move_4_info(bel, probCmd, pUp, pDown, pLeft, pRight):
     return best_move
     
 
+def grouplocs(bel):
+    dirs = [(0,1), (0,-1), (1,0), (-1,0)]
+    probs = [0,0,0,0]
+    for row in range(len(bel)):
+        for col in range(len(bel[row])):
+            if (row, col) not in paths:
+                continue
+            path_to = paths[(row, col)]
+            if len(path_to) < 2:
+                continue
+            dir_1 = (path_to[1][0]-path_to[0][0], path_to[1][1]-path_to[0][1])
+            k = 0
+            while dirs[k] != dir_1:
+                k+=1
+            probs[k] += bel[row][col]
+    probs = probs/sum(probs)
+    for k in range(len(probs)):
+        if probs[k] >= 0.9:
+            return dirs[k]
+    return False
+
 # 
 #
 #  Main Code
@@ -296,29 +318,34 @@ def main():
         visual.Show(bel, robot.Position(), pos)
         # Get the command key to determine the direction.
 
-        if pos in paths:
-            path = paths[pos]
-        else:
-            path = None
-        
-        if fails >= 50 and path==None:
-            print("Could not find path")
-            break
-        if path != None and path[0] == GOAL:
-            print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
-            break
-
-        if (get_max_Prob(bel) < .1) and tries < 20:
-            d = best_move_4_info(bel, probCmd, probUp, probDown,\
-                                 probLeft, probRight)
-            tries += 5
-        elif path != None:
-            d = (path[1][0] - pos[0], path[1][1] - pos[1])
+        k = grouplocs(bel)
+        if k:
+            d = k
             tries -= 1
         else:
-            fails += 1
-            d = best_move_4_info(bel, probCmd, probUp, probDown,\
-                                 probLeft, probRight)
+            if pos in paths:
+                path = paths[pos]
+            else:
+                path = None
+            
+            if fails >= 50 and path==None:
+                print("Could not find path")
+                break
+            if path != None and path[0] == GOAL:
+                print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
+                break
+
+            if (get_max_Prob(bel) < .1) and tries < 20:
+                d = best_move_4_info(bel, probCmd, probUp, probDown,\
+                                    probLeft, probRight)
+                tries += 5
+            elif path != None:
+                d = (path[1][0] - pos[0], path[1][1] - pos[1])
+                tries -= 1
+            else:
+                fails += 1
+                d = best_move_4_info(bel, probCmd, probUp, probDown,\
+                                    probLeft, probRight)
         '''if path != None:
             d = (path[1][0] - pos[0], path[1][1] - pos[1])
         else:
