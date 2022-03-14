@@ -323,45 +323,35 @@ def main():
             d = k
             tries -= 1
         else:
-            if pos in paths:
-                path = paths[pos]
-            else:
-                path = None
+            path = None if pos not in paths else paths[pos]
             
-            if fails >= 50 and path==None:
-                print("Could not find path")
-                break
-            if path != None and path[0] == GOAL:
-                print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
-                break
-
-            if (get_max_Prob(bel) < .1) and tries < 20:
-                d = best_move_4_info(bel, probCmd, probUp, probDown,\
+            if path is None:
+                if fails >= 50:
+                    print("Could not find path")
+                    break
+                else:
+                    fails += 1
+                    d = best_move_4_info(bel, probCmd, probUp, probDown,\
                                     probLeft, probRight)
-                tries += 5
-            elif path != None:
-                d = (path[1][0] - pos[0], path[1][1] - pos[1])
-                tries -= 1
             else:
-                fails += 1
-                d = best_move_4_info(bel, probCmd, probUp, probDown,\
-                                    probLeft, probRight)
-        '''if path != None:
-            d = (path[1][0] - pos[0], path[1][1] - pos[1])
-        else:
-            fails += 1
-            d = dirs[random.randint(0,3)]'''
+                if path[0] == GOAL and bel[pos] > 0.33:
+                    print("Goal found in", tot_moves, "moves, with", 100 * bel[pos], "% certainty" )
+                    break
+
+                if (get_max_Prob(bel) < .1) and tries < 20:
+                    d = best_move_4_info(bel, probCmd, probUp, probDown,\
+                                        probLeft, probRight)
+                    tries += 5
+                else:
+                    d = (path[1][0] - pos[0], path[1][1] - pos[1])
+                    tries -= 1
+        
+        # Move the robot
         robot.Command(d[0], d[1])
         tot_moves += 1
-        # Move the robot in the simulation.
-        # robot.Command(drow, dcol)
-
-
+        
         # Compute a prediction.
         prd = computePrediction(bel, d[0], d[1], probCmd)
-        #visual.Show(prd)
-        #input("Showing the prediction")
-
 
         # Correct the prediction/execute the measurement update.
         bel = prd
